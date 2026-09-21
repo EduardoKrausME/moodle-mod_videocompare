@@ -1,0 +1,558 @@
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * compare.js
+ *
+ * @package   mod_videocompare
+ * @copyright 2026 Eduardo Kraus {@link https://eduardokraus.com}
+ * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+define(['core/ajax', 'core/notification', 'core/str'], function (Ajax, Notification, Str) {
+    'use strict';
+
+    const players = new Map();
+    let config = {};
+    let capturedA = null;
+    let capturedB = null;
+    let youtubePromise = null;
+    let vimeoPromise = null;
+
+    const formatTime = (seconds) => {
+        seconds = Math.max(0, Math.round(Number(seconds) || 0));
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        return h > 0
+            ? [h, m, s].map((v) => String(v).padStart(2, '0')).join(':')
+            : [m, s].map((v) => String(v).padStart(2, '0')).join(':');
+    };
+
+    const loadScript = (src, globalName) => new Promise((resolve, reject) => {
+        if (globalName && window[globalName]) {
+            resolve(window[globalName]);
+            return;
+        }
+        const existing = document.querySelector('script[src="' + src + '"]');
+        if (existing) {
+            const timer = window.setInterval(() => {
+                if (!globalName || window[globalName]) {
+                    window.clearInterval(timer);
+                    resolve(globalName ? window[globalName] : true);
+                }
+            }, 100);
+            window.setTimeout(() => {
+                window.clearInterval(timer);
+                if (!globalName || window[globalName]) {
+                    resolve(globalName ? window[globalName] : true);
+                } else {
+                    reject(new Error('Unable to load player API'));
+                }
+            }, 10000);
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = () => resolve(globalName ? window[globalName] : true);
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+
+    const loadYouTube = () => {
+        if (window.YT && window.YT.Player) {
+            return Promise.resolve(window.YT);
+        }
+        if (!youtubePromise) {
+            youtubePromise = new Promise((resolve, reject) => {
+                const previous = window.onYouTubeIframeAPIReady;
+                window.onYouTubeIframeAPIReady = () => {
+                    if (typeof previous === 'function') {
+                        previous();
+                    }
+                    resolve(window.YT);
+                };
+                loadScript('https://www.youtube.com/iframe_api').catch(reject);
+            });
+        }
+        return youtubePromise;
+    };
+
+    const loadVimeo = () => {
+        if (window.Vimeo && window.Vimeo.Player) {
+            return Promise.resolve(window.Vimeo);
+        }
+        if (!vimeoPromise) {
+            vimeoPromise = loadScript('https://player.vimeo.com/api/player.js', 'Vimeo');
+        }
+        return vimeoPromise;
+    };
+
+    const recordSample = (state) => {
+        if (!state.playing || state.current === null || state.current === undefined) {
+            state.sample = state.current;
+            state.sampleWall = Date.now();
+            return;
+        }
+
+        const now = Date.now();
+        if (state.sample === null || state.sample === undefined) {
+            state.sample = state.current;
+            state.sampleWall = now;
+            return;
+        }
+
+        const mediaDelta = state.current - state.sample;
+        const wallDelta = Math.max(0.1, (now - state.sampleWall) / 1000);
+        if (mediaDelta > 0.05 && mediaDelta <= Math.max(6, wallDelta * 2.5)) {
+            state.pending.push([
+                Number(state.sample.toFixed(2)),
+                Number(state.current.toFixed(2))
+            ]);
+        }
+
+        state.sample = state.current;
+        state.sampleWall = now;
+    };
+
+    const flush = (state) => {
+        if (!state || state.duration <= 0) {
+            return Promise.resolve();
+        }
+        if (state.saving) {
+            return state.savePromise || Promise.resolve();
+        }
+
+        recordSample(state);
+        const segments = state.pending.splice(0, state.pending.length);
+        if (!segments.length && state.lastSentPosition !== null
+            && Math.abs(state.current - state.lastSentPosition) < 1) {
+            return Promise.resolve();
+        }
+
+        state.saving = true;
+        const request = Ajax.call([{
+            methodname: 'mod_videocompare_update_progress',
+            args: {
+                cmid: config.cmid,
+                videoid: state.id,
+                position: Number(state.current || 0),
+                duration: Number(state.duration || 0),
+                segmentsjson: JSON.stringify(segments)
+            }
+        }])[0];
+
+        state.savePromise = request.then((result) => {
+            state.lastSentPosition = state.current;
+            const percent = document.querySelector('[data-video-percent="' + state.id + '"]');
+            if (percent) {
+                percent.textContent = Number(result.percent).toFixed(1);
+            }
+            const position = document.querySelector('[data-video-position="' + state.id + '"]');
+            if (position) {
+                position.textContent = formatTime(result.lastposition);
+            }
+            const overall = document.querySelector('[data-region="overall-percent"]');
+            if (overall) {
+                overall.textContent = Number(result.overall).toFixed(1);
+            }
+            const overallbar = document.querySelector('[data-region="overall-bar"]');
+            if (overallbar) {
+                overallbar.style.width = Number(result.overall) + '%';
+                const parent = overallbar.closest('[role="progressbar"]');
+                if (parent) {
+                    parent.setAttribute('aria-valuenow', Number(result.overall));
+                }
+            }
+            return result;
+        }).catch((error) => {
+            state.pending.unshift(...segments);
+            Notification.exception(error);
+        }).finally(() => {
+            state.saving = false;
+            state.savePromise = null;
+        });
+        return state.savePromise;
+    };
+
+    const createState = (container) => {
+        const id = Number(container.dataset.videoid);
+        const state = {
+            id: id,
+            type: container.dataset.sourcetype,
+            current: Number(container.dataset.lastposition) || 0,
+            duration: 0,
+            playing: false,
+            sample: null,
+            sampleWall: Date.now(),
+            pending: [],
+            saving: false,
+            savePromise: null,
+            lastSentPosition: null,
+            seek: null,
+            play: null,
+            pause: null
+        };
+        players.set(id, state);
+        return state;
+    };
+
+    const initHtml5 = (container, state) => {
+        const video = container.querySelector('[data-role="html5-player"]');
+        if (!video) {
+            return;
+        }
+
+        state.seek = (time) => {
+            if (Number.isFinite(time)) {
+                video.currentTime = Math.max(0, Math.min(time, video.duration || time));
+            }
+        };
+        state.play = () => video.play().catch(() => {
+        });
+        state.pause = () => video.pause();
+
+        video.addEventListener('loadedmetadata', () => {
+            state.duration = Number(video.duration) || 0;
+            if (state.current > 0 && state.current < state.duration - 2) {
+                video.currentTime = state.current;
+            }
+        });
+        video.addEventListener('playing', () => {
+            state.playing = true;
+            state.current = video.currentTime;
+            state.sample = state.current;
+            state.sampleWall = Date.now();
+        });
+        video.addEventListener('timeupdate', () => {
+            state.current = video.currentTime;
+            state.duration = Number(video.duration) || state.duration;
+        });
+        video.addEventListener('seeking', () => {
+            recordSample(state);
+            state.current = video.currentTime;
+            state.sample = state.current;
+            state.sampleWall = Date.now();
+        });
+        video.addEventListener('pause', () => {
+            state.current = video.currentTime;
+            recordSample(state);
+            state.playing = false;
+            flush(state);
+        });
+        video.addEventListener('ended', () => {
+            state.current = video.currentTime;
+            recordSample(state);
+            state.playing = false;
+            flush(state);
+        });
+    };
+
+    const initYouTube = (container, state) => {
+        const target = container.querySelector('[data-role="youtube-player"]');
+        const videoId = container.dataset.providerid;
+        if (!target || !videoId) {
+            return;
+        }
+
+        loadYouTube().then((YT) => {
+            const player = new YT.Player(target, {
+                videoId: videoId,
+                playerVars: {
+                    rel: 0,
+                    modestbranding: 1,
+                    playsinline: 1
+                },
+                events: {
+                    onReady: () => {
+                        state.duration = Number(player.getDuration()) || 0;
+                        if (state.current > 0 && state.current < state.duration - 2) {
+                            player.seekTo(state.current, true);
+                        }
+                        state.seek = (time) => player.seekTo(Math.max(0, time), true);
+                        state.play = () => player.playVideo();
+                        state.pause = () => player.pauseVideo();
+                    },
+                    onStateChange: (event) => {
+                        state.current = Number(player.getCurrentTime()) || state.current;
+                        state.duration = Number(player.getDuration()) || state.duration;
+                        if (event.data === YT.PlayerState.PLAYING) {
+                            state.playing = true;
+                            state.sample = state.current;
+                            state.sampleWall = Date.now();
+                        } else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+                            recordSample(state);
+                            state.playing = false;
+                            flush(state);
+                        } else if (event.data === YT.PlayerState.BUFFERING) {
+                            recordSample(state);
+                            state.sample = state.current;
+                            state.sampleWall = Date.now();
+                        }
+                    }
+                }
+            });
+            state.poll = window.setInterval(() => {
+                if (player && typeof player.getCurrentTime === 'function') {
+                    state.current = Number(player.getCurrentTime()) || state.current;
+                    state.duration = Number(player.getDuration()) || state.duration;
+                }
+            }, 1000);
+        }).catch(Notification.exception);
+    };
+
+    const initVimeo = (container, state) => {
+        const target = container.querySelector('[data-role="vimeo-player"]');
+        const videoId = container.dataset.providerid;
+        if (!target || !videoId) {
+            return;
+        }
+
+        loadVimeo().then((Vimeo) => {
+            const player = new Vimeo.Player(target, {
+                id: Number(videoId),
+                responsive: true
+            });
+            state.seek = (time) => player.setCurrentTime(Math.max(0, time));
+            state.play = () => player.play();
+            state.pause = () => player.pause();
+
+            player.ready().then(() => player.getDuration()).then((duration) => {
+                state.duration = Number(duration) || 0;
+                if (state.current > 0 && state.current < state.duration - 2) {
+                    return player.setCurrentTime(state.current);
+                }
+                return null;
+            }).catch(() => {
+            });
+
+            player.on('play', () => {
+                state.playing = true;
+                state.sample = state.current;
+                state.sampleWall = Date.now();
+            });
+            player.on('timeupdate', (data) => {
+                state.current = Number(data.seconds) || 0;
+                state.duration = Number(data.duration) || state.duration;
+            });
+            player.on('seeked', (data) => {
+                recordSample(state);
+                state.current = Number(data.seconds) || state.current;
+                state.sample = state.current;
+                state.sampleWall = Date.now();
+            });
+            player.on('pause', (data) => {
+                state.current = Number(data.seconds) || state.current;
+                recordSample(state);
+                state.playing = false;
+                flush(state);
+            });
+            player.on('ended', (data) => {
+                state.current = Number(data.seconds) || state.current;
+                recordSample(state);
+                state.playing = false;
+                flush(state);
+            });
+        }).catch(Notification.exception);
+    };
+
+    const showVideo = (videoId) => {
+        document.querySelectorAll('[data-video-card]').forEach((card) => {
+            card.classList.toggle('is-active', Number(card.dataset.videoCard) === Number(videoId));
+        });
+        document.querySelectorAll('[data-action="show-video"]').forEach((button) => {
+            button.classList.toggle('active', Number(button.dataset.videoid) === Number(videoId));
+        });
+    };
+
+    const seekVideo = (videoId, time) => {
+        showVideo(videoId);
+        const state = players.get(Number(videoId));
+        if (!state || !state.seek) {
+            return;
+        }
+        state.seek(Number(time) || 0);
+        window.setTimeout(() => {
+            if (state.play) {
+                state.play();
+            }
+        }, 200);
+        const card = document.querySelector('[data-video-card="' + Number(videoId) + '"]');
+        if (card) {
+            card.scrollIntoView({behavior: 'smooth', block: 'center'});
+        }
+    };
+
+    const capture = (which) => {
+        const select = document.querySelector('[data-region="video-' + which + '"]');
+        if (!select) {
+            return;
+        }
+        const id = Number(select.value);
+        const state = players.get(id);
+        const value = state ? Number(state.current || 0) : 0;
+        if (which === 'a') {
+            capturedA = {videoid: id, time: value};
+        } else {
+            capturedB = {videoid: id, time: value};
+        }
+        const label = document.querySelector('[data-region="captured-' + which + '"]');
+        if (label) {
+            label.textContent = formatTime(value);
+        }
+    };
+
+    const saveComparison = () => {
+        const note = document.querySelector('[data-region="comparison-note"]');
+        const videoA = document.querySelector('[data-region="video-a"]');
+        const videoB = document.querySelector('[data-region="video-b"]');
+        if (!note || !videoA || !videoB) {
+            return;
+        }
+
+        Promise.all([
+            Str.get_string('error:samevideos', 'videocompare'),
+            Str.get_string('error:captureboth', 'videocompare'),
+            Str.get_string('error:comparisonrequired', 'videocompare')
+        ]).then((strings) => {
+            if (Number(videoA.value) === Number(videoB.value)) {
+                Notification.alert('Video Compare', strings[0]);
+                return;
+            }
+            if (!capturedA || !capturedB || capturedA.videoid !== Number(videoA.value)
+                || capturedB.videoid !== Number(videoB.value)) {
+                Notification.alert('Video Compare', strings[1]);
+                return;
+            }
+            if (!note.value.trim()) {
+                Notification.alert('Video Compare', strings[2]);
+                return;
+            }
+
+            Ajax.call([{
+                methodname: 'mod_videocompare_save_note',
+                args: {
+                    cmid: config.cmid,
+                    videoaid: capturedA.videoid,
+                    timea: capturedA.time,
+                    videobid: capturedB.videoid,
+                    timeb: capturedB.time,
+                    note: note.value.trim()
+                }
+            }])[0].then(() => Promise.all(
+                Array.from(players.values()).map((state) => {
+                    recordSample(state);
+                    return flush(state);
+                })
+            )).then(() => {
+                window.location.reload();
+            }).catch(Notification.exception);
+        }).catch(Notification.exception);
+    };
+
+    const bindControls = () => {
+        document.addEventListener('click', (event) => {
+            const show = event.target.closest('[data-action="show-video"]');
+            if (show) {
+                showVideo(Number(show.dataset.videoid));
+                return;
+            }
+
+            const seek = event.target.closest('[data-action="seek"]');
+            if (seek) {
+                seekVideo(Number(seek.dataset.videoid), Number(seek.dataset.time));
+                return;
+            }
+
+            if (event.target.closest('[data-action="capture-a"]')) {
+                capture('a');
+                return;
+            }
+            if (event.target.closest('[data-action="capture-b"]')) {
+                capture('b');
+                return;
+            }
+            if (event.target.closest('[data-action="save-comparison"]')) {
+                saveComparison();
+            }
+        });
+
+        document.querySelectorAll('[data-region="video-a"], [data-region="video-b"]').forEach((select) => {
+            select.addEventListener('change', () => {
+                if (select.matches('[data-region="video-a"]')) {
+                    capturedA = null;
+                    const label = document.querySelector('[data-region="captured-a"]');
+                    if (label) {
+                        label.textContent = '00:00';
+                    }
+                } else {
+                    capturedB = null;
+                    const label = document.querySelector('[data-region="captured-b"]');
+                    if (label) {
+                        label.textContent = '00:00';
+                    }
+                }
+            });
+        });
+
+        const a = document.querySelector('[data-region="video-a"]');
+        const b = document.querySelector('[data-region="video-b"]');
+        if (a && b && b.options.length > 1) {
+            b.selectedIndex = 1;
+        }
+    };
+
+    const initPlayers = () => {
+        document.querySelectorAll('.mod-videocompare-player').forEach((container) => {
+            const state = createState(container);
+            if (state.type === 'youtube') {
+                initYouTube(container, state);
+            } else if (state.type === 'vimeo') {
+                initVimeo(container, state);
+            } else {
+                initHtml5(container, state);
+            }
+        });
+
+        window.setInterval(() => {
+            players.forEach((state) => {
+                recordSample(state);
+            });
+        }, 3000);
+
+        window.setInterval(() => {
+            players.forEach((state) => {
+                if (state.playing || state.pending.length) {
+                    flush(state);
+                }
+            });
+        }, 10000);
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                players.forEach((state) => flush(state));
+            }
+        });
+    };
+
+    return {
+        init: function (options) {
+            config = options || {};
+            initPlayers();
+            bindControls();
+        }
+    };
+});

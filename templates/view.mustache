@@ -1,0 +1,213 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_videocompare/view
+
+    Example context (json):
+    {
+        Aqui tem que criar o context em inglês
+    }
+}}
+<div class="mod-videocompare" data-cmid="{{cmid}}">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+        <div>
+            <h2 class="mb-1">{{name}}</h2>
+            <div class="mod-videocompare-overall">
+                <strong>{{#str}}overallprogress, videocompare{{/str}}:</strong>
+                <span data-region="overall-percent">{{overall}}</span>%
+                <div class="progress mt-1" role="progressbar" aria-valuenow="{{overall}}" aria-valuemin="0"
+                     aria-valuemax="100">
+                    <div class="progress-bar" data-region="overall-bar" style="width: {{overall}}%"></div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            {{#canmanage}}<a class="btn btn-outline-primary" href="{{{manageurl}}}">{{#str}}
+                managecontent, videocompare{{/str}}</a>{{/canmanage}}
+            {{#canreports}}<a class="btn btn-outline-secondary" href="{{{reporturl}}}">{{#str}}
+                reports, videocompare{{/str}}</a>{{/canreports}}
+        </div>
+    </div>
+
+    {{#intro}}
+        <div class="mb-4">{{{intro}}}</div>{{/intro}}
+
+    {{#needsconfiguration}}
+        <div class="alert alert-warning">
+            {{#str}}notconfigured, videocompare{{/str}}
+            {{#canmanage}}<a href="{{{manageurl}}}" class="alert-link">{{#str}}
+                configureactivity, videocompare{{/str}}</a>{{/canmanage}}
+        </div>
+    {{/needsconfiguration}}
+
+    {{#configured}}
+        <div class="mod-videocompare-switcher mb-3" data-region="switcher">
+            {{#videos}}
+                <button type="button" class="btn btn-outline-secondary {{#first}}active{{/first}}"
+                        data-action="show-video" data-videoid="{{id}}">{{name}}</button>
+            {{/videos}}
+        </div>
+
+        <div class="mod-videocompare-grid {{layoutclass}}" data-region="video-grid">
+            {{#videos}}
+                <section class="mod-videocompare-video-card {{#first}}is-active{{/first}}" data-video-card="{{id}}">
+                    <div class="mod-videocompare-video-heading">
+                        <h3>{{name}}</h3>
+                        <span class="badge bg-secondary"><span data-video-percent="{{id}}">{{percent}}</span>%</span>
+                    </div>
+
+                    <div class="mod-videocompare-player" data-videoid="{{id}}" data-sourcetype="{{sourcetype}}"
+                         data-providerid="{{providerid}}" data-lastposition="{{lastposition}}">
+                        {{#ishtml5}}
+                            <video class="w-100" controls playsinline preload="metadata" data-role="html5-player">
+                                <source src="{{{sourceurl}}}">
+                            </video>
+                        {{/ishtml5}}
+                        {{#isyoutube}}
+                            <div class="mod-videocompare-provider" data-role="youtube-player"></div>
+                        {{/isyoutube}}
+                        {{#isvimeo}}
+                            <div class="mod-videocompare-provider" data-role="vimeo-player"></div>
+                        {{/isvimeo}}
+                    </div>
+
+                    <div class="mod-videocompare-timeline mt-2" aria-label="{{#str}}watched, videocompare{{/str}}">
+                        {{#segments}}<span class="watched-segment"
+                                           style="left: {{left}}%; width: {{width}}%"></span>{{/segments}}
+                    </div>
+
+                    <div class="small text-muted mt-1">
+                        {{#str}}lastposition, videocompare{{/str}}:
+                        <span data-video-position="{{id}}">{{lastpositionformatted}}</span>
+                    </div>
+                    {{#description}}
+                        <div class="mt-2">{{{description}}}</div>{{/description}}
+                </section>
+            {{/videos}}
+        </div>
+
+        {{#cansubmit}}
+            <section class="card mt-4">
+                <div class="card-body">
+                    <h3>{{#str}}comparemoments, videocompare{{/str}}</h3>
+                    <p>{{#str}}compareinstructions, videocompare{{/str}}</p>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="videocompare-video-a">{{#str}}
+                                videoa, videocompare{{/str}}</label>
+                            <select class="form-select" id="videocompare-video-a" data-region="video-a">
+                                {{#videooptions}}
+                                    <option value="{{id}}">{{name}}</option>{{/videooptions}}
+                            </select>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mt-2" data-action="capture-a">
+                                {{#str}}capturetime, videocompare{{/str}}
+                            </button>
+                            <span class="ms-2" data-region="captured-a">00:00</span>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="videocompare-video-b">{{#str}}
+                                videob, videocompare{{/str}}</label>
+                            <select class="form-select" id="videocompare-video-b" data-region="video-b">
+                                {{#videooptions}}
+                                    <option value="{{id}}">{{name}}</option>{{/videooptions}}
+                            </select>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mt-2" data-action="capture-b">
+                                {{#str}}capturetime, videocompare{{/str}}
+                            </button>
+                            <span class="ms-2" data-region="captured-b">00:00</span>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label" for="videocompare-note">{{#str}}
+                            comparison, videocompare{{/str}}</label>
+                        <textarea class="form-control" rows="4" id="videocompare-note"
+                                  data-region="comparison-note"></textarea>
+                    </div>
+                    <button type="button" class="btn btn-primary mt-3" data-action="save-comparison">
+                        {{#str}}savecomparison, videocompare{{/str}}
+                    </button>
+                </div>
+            </section>
+
+            <section class="mt-4">
+                <h3>{{#str}}savedcomparisons, videocompare{{/str}}</h3>
+                {{#hasnotes}}
+                    <div class="list-group">
+                        {{#notes}}
+                            <div class="list-group-item">
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-action="seek"
+                                            data-videoid="{{videoaid}}" data-time="{{timea}}">
+                                        {{videoaname}} — {{timeaformatted}}
+                                    </button>
+                                    <span>↔</span>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-action="seek"
+                                            data-videoid="{{videobid}}" data-time="{{timeb}}">
+                                        {{videobname}} — {{timebformatted}}
+                                    </button>
+                                </div>
+                                <div class="mt-2">{{note}}</div>
+                            </div>
+                        {{/notes}}
+                    </div>
+                {{/hasnotes}}
+                {{^hasnotes}}<p class="text-muted">{{#str}}nocomparisons, videocompare{{/str}}</p>{{/hasnotes}}
+            </section>
+
+            {{#hasquestions}}
+                <section class="card mt-4">
+                    <div class="card-body">
+                        <h3>{{#str}}answerquestions, videocompare{{/str}}</h3>
+                        <form method="post">
+                            <input type="hidden" name="sesskey" value="{{sesskey}}">
+                            <input type="hidden" name="saveanswers" value="1">
+                            {{#questions}}
+                                <div class="mod-videocompare-question mb-4">
+                                    <div class="mb-2">
+                                        {{{questionhtml}}}
+                                        {{#required}}<span class="badge bg-danger ms-1">{{#str}}
+                                            required, videocompare{{/str}}</span>{{/required}}
+                                    </div>
+                                    {{#hasreferencea}}
+                                        <button type="button" class="btn btn-sm btn-outline-secondary mb-2"
+                                                data-action="seek"
+                                                data-videoid="{{referenceavideoid}}" data-time="{{referenceaseconds}}">
+                                            {{referenceaname}} — {{referenceatime}}
+                                        </button>
+                                    {{/hasreferencea}}
+                                    {{#hasreferenceb}}
+                                        <button type="button" class="btn btn-sm btn-outline-secondary mb-2"
+                                                data-action="seek"
+                                                data-videoid="{{referencebvideoid}}" data-time="{{referencebseconds}}">
+                                            {{referencebname}} — {{referencebtime}}
+                                        </button>
+                                    {{/hasreferenceb}}
+                                    <label class="visually-hidden" for="answer-{{id}}">{{#str}}
+                                        answer, videocompare{{/str}}</label>
+                                    <textarea id="answer-{{id}}" class="form-control" rows="4"
+                                              name="{{fieldname}}">{{answer}}</textarea>
+                                </div>
+                            {{/questions}}
+                            <button class="btn btn-primary" type="submit">{{#str}}
+                                saveanswers, videocompare{{/str}}</button>
+                        </form>
+                    </div>
+                </section>
+            {{/hasquestions}}
+        {{/cansubmit}}
+    {{/configured}}
+</div>

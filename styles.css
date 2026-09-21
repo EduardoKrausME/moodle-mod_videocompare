@@ -1,0 +1,91 @@
+.mod-videocompare .mod-videocompare-overall {
+    min-width: 260px;
+}
+
+.mod-videocompare .mod-videocompare-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    align-items: start;
+}
+
+.mod-videocompare .mod-videocompare-video-card {
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    border-radius: .5rem;
+    padding: 1rem;
+    background: var(--bs-body-bg, #fff);
+    min-width: 0;
+}
+
+.mod-videocompare .mod-videocompare-video-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: .75rem;
+}
+
+.mod-videocompare .mod-videocompare-video-heading h3 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.mod-videocompare .mod-videocompare-player {
+    background: #000;
+    border-radius: .35rem;
+    overflow: hidden;
+    aspect-ratio: 16 / 9;
+}
+
+.mod-videocompare .mod-videocompare-player video,
+.mod-videocompare .mod-videocompare-provider,
+.mod-videocompare .mod-videocompare-provider iframe {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.mod-videocompare .mod-videocompare-timeline {
+    position: relative;
+    height: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--bs-secondary-bg, #e9ecef);
+}
+
+.mod-videocompare .mod-videocompare-timeline .watched-segment {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: var(--bs-success, #198754);
+}
+
+.mod-videocompare .mod-videocompare-switcher {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+.mod-videocompare .videocompare-layout-switch .mod-videocompare-video-card:not(.is-active) {
+    display: none;
+}
+
+.mod-videocompare .videocompare-layout-switch {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.mod-videocompare .mod-videocompare-question {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+@media (max-width: 900px) {
+    .mod-videocompare .mod-videocompare-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .mod-videocompare .videocompare-layout-auto .mod-videocompare-video-card:not(.is-active),
+    .mod-videocompare .videocompare-layout-sidebyside .mod-videocompare-video-card:not(.is-active) {
+        display: none;
+    }
+}

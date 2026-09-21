@@ -1,0 +1,103 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template mod_videocompare/manage
+
+    Example context (json):
+    {
+        Aqui tem que criar o context em inglês
+    }
+}}
+<div class="mod-videocompare-manage">
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <a class="btn btn-primary" href="{{{addvideourl}}}">{{#str}}addvideo, videocompare{{/str}}</a>
+        <a class="btn btn-secondary" href="{{{addquestionurl}}}">{{#str}}addquestion, videocompare{{/str}}</a>
+        <a class="btn btn-outline-secondary" href="{{{viewurl}}}">{{#str}}view{{/str}}</a>
+    </div>
+
+    {{#needsvideos}}
+        <div class="alert alert-warning">{{#str}}notconfigured, videocompare{{/str}}</div>
+    {{/needsvideos}}
+
+    <h3>{{#str}}videos, videocompare{{/str}}</h3>
+    {{#hasvideos}}
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                <tr>
+                    <th>{{#str}}videoname, videocompare{{/str}}</th>
+                    <th>{{#str}}sourcetype, videocompare{{/str}}</th>
+                    <th class="text-end">{{#str}}actions{{/str}}</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{#videos}}
+                    <tr>
+                        <td>{{name}}</td>
+                        <td>{{source}}</td>
+                        <td class="text-end text-nowrap">
+                            {{#canup}}<a class="btn btn-sm btn-outline-secondary" href="{{{upurl}}}">{{#str}}
+                                moveup, videocompare{{/str}}</a>{{/canup}}
+                            {{#candown}}<a class="btn btn-sm btn-outline-secondary" href="{{{downurl}}}">{{#str}}
+                                movedown, videocompare{{/str}}</a>{{/candown}}
+                            <a class="btn btn-sm btn-outline-primary" href="{{{editurl}}}">{{#str}}edit{{/str}}</a>
+                            <a class="btn btn-sm btn-outline-danger" href="{{{deleteurl}}}">{{#str}}delete{{/str}}</a>
+                        </td>
+                    </tr>
+                {{/videos}}
+                </tbody>
+            </table>
+        </div>
+    {{/hasvideos}}
+    {{^hasvideos}}
+        <p>{{#str}}nocontent, videocompare{{/str}}</p>
+    {{/hasvideos}}
+
+    <h3 class="mt-4">{{#str}}questions, videocompare{{/str}}</h3>
+    {{#hasquestions}}
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                <tr>
+                    <th>{{#str}}questiontext, videocompare{{/str}}</th>
+                    <th>{{#str}}required, videocompare{{/str}}</th>
+                    <th class="text-end">{{#str}}actions{{/str}}</th>
+                </tr>
+                </thead>
+                <tbody>
+                {{#questions}}
+                    <tr>
+                        <td>{{{questionhtml}}}</td>
+                        <td>{{requiredlabel}}</td>
+                        <td class="text-end text-nowrap">
+                            {{#canup}}<a class="btn btn-sm btn-outline-secondary" href="{{{upurl}}}">{{#str}}
+                                moveup, videocompare{{/str}}</a>{{/canup}}
+                            {{#candown}}<a class="btn btn-sm btn-outline-secondary" href="{{{downurl}}}">{{#str}}
+                                movedown, videocompare{{/str}}</a>{{/candown}}
+                            <a class="btn btn-sm btn-outline-primary" href="{{{editurl}}}">{{#str}}edit{{/str}}</a>
+                            <a class="btn btn-sm btn-outline-danger" href="{{{deleteurl}}}">{{#str}}delete{{/str}}</a>
+                        </td>
+                    </tr>
+                {{/questions}}
+                </tbody>
+            </table>
+        </div>
+    {{/hasquestions}}
+    {{^hasquestions}}
+        <p>{{#str}}nocontent, videocompare{{/str}}</p>
+    {{/hasquestions}}
+</div>
