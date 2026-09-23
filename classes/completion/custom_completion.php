@@ -38,11 +38,11 @@ class custom_completion extends activity_custom_completion {
      * @return int
      */
     public function get_state(string $rule): int {
-        global $DB, $USER;
+        global $DB;
         $instance = $DB->get_record('videocompare', ['id' => $this->cm->instance], '*', MUST_EXIST);
 
         if ($rule === 'completionpercent') {
-            return progress_manager::overall_percent((int)$instance->id, (int)$USER->id)
+            return progress_manager::overall_percent((int)$instance->id, (int)$this->userid)
             >= (float)$instance->completionpercent ? COMPLETION_COMPLETE : COMPLETION_INCOMPLETE;
         }
 
@@ -50,7 +50,7 @@ class custom_completion extends activity_custom_completion {
             if (empty($instance->completionquestions)) {
                 return COMPLETION_COMPLETE;
             }
-            $status = progress_manager::required_question_status((int)$instance->id, (int)$USER->id);
+            $status = progress_manager::required_question_status((int)$instance->id, (int)$this->userid);
             return ($status['required'] === 0 || $status['answered'] >= $status['required'])
                 ? COMPLETION_COMPLETE : COMPLETION_INCOMPLETE;
         }

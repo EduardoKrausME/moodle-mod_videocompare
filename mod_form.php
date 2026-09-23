@@ -45,7 +45,7 @@ class mod_videocompare_mod_form extends moodleform_mod {
 
         $this->standard_intro_elements();
 
-        $mform->addElement('header', 'displaysettings', get_string('displaysettings', 'videocompare'));
+        $mform->addElement('html', '<h3>' . get_string('displaysettings', 'videocompare') . '</h3>');
         $mform->addElement('select', 'layout', get_string('layout', 'videocompare'), [
             'auto' => get_string('layoutauto', 'videocompare'),
             'sidebyside' => get_string('layoutsidebyside', 'videocompare'),

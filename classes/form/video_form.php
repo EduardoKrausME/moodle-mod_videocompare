@@ -68,7 +68,6 @@ class video_form extends moodleform {
 
         $options = [
             'subdirs' => 0,
-            'maxfiles' => 1,
             'accepted_types' => ['video'],
             'return_types' => FILE_INTERNAL,
         ];
@@ -116,6 +115,15 @@ class video_form extends moodleform {
             }
         }
 
+        foreach (['videofile'] as $field) {
+            $draftid = (int)($data[$field] ?? 0);
+            if ($draftid > 0) {
+                $draftinfo = file_get_draft_area_info($draftid);
+                if ((int)$draftinfo['filecount'] > 1) {
+                    $errors[$field] = get_string('errormaxfiles', 'videocompare');
+                }
+            }
+        }
         return $errors;
     }
 }

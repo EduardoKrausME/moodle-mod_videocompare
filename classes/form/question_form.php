@@ -57,7 +57,7 @@ class question_form extends moodleform {
         $mform->addElement('selectyesno', 'required', get_string('required', 'videocompare'));
         $mform->setDefault('required', 1);
 
-        $mform->addElement('header', 'references', get_string('comparemoments', 'videocompare'));
+        $mform->addElement('html', '<h3>' . get_string('comparemoments', 'videocompare') . '</h3>');
         $mform->addElement('select', 'videoaid', get_string('referencevideoa', 'videocompare'), $options);
         $mform->addElement('text', 'timea_text', get_string('referencetimea', 'videocompare'), ['size' => 12]);
         $mform->setType('timea_text', PARAM_TEXT);
