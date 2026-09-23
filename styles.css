@@ -89,3 +89,10 @@
         display: none;
     }
 }
+/* Provider APIs can replace their placeholder with a direct iframe. */
+.mod-videocompare .mod-videocompare-player > iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
