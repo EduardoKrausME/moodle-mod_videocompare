@@ -62,11 +62,11 @@ class save_note extends external_api {
      * @return array
      */
     public static function execute(
-        int    $cmid,
-        int    $videoaid,
-        float  $timea,
-        int    $videobid,
-        float  $timeb,
+        int $cmid,
+        int $videoaid,
+        float $timea,
+        int $videobid,
+        float $timeb,
         string $note
     ): array {
         global $DB, $USER;

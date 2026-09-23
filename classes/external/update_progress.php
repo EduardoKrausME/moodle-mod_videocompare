@@ -61,10 +61,10 @@ class update_progress extends external_api {
      * @return array
      */
     public static function execute(
-        int    $cmid,
-        int    $videoid,
-        float  $position,
-        float  $duration,
+        int $cmid,
+        int $videoid,
+        float $position,
+        float $duration,
         string $segmentsjson
     ): array {
         global $DB, $USER;
