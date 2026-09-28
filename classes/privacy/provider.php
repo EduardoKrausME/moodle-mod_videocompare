@@ -239,7 +239,6 @@ class provider implements
                 $DB->delete_records($table, ['videocompareid' => $cm->instance, 'userid' => $userid]);
             }
         }
-
     }
 
     /**
