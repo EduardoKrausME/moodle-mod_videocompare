@@ -273,5 +273,5 @@ class provider implements
         foreach (['videocompare_progress', 'videocompare_answers', 'videocompare_notes'] as $table) {
             $DB->delete_records_select($table, $select, $params);
         }
-
+    }
 }
