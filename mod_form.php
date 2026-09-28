@@ -64,26 +64,29 @@ class mod_videocompare_mod_form extends moodleform_mod {
      */
     public function add_completion_rules(): array {
         $mform = $this->_form;
+        $suffix = $this->get_suffix();
 
+        $completionpercent = 'completionpercent' . $suffix;
         $mform->addElement(
             'text',
-            'completionpercent',
+            $completionpercent,
             get_string('completionpercent', 'videocompare'),
             ['size' => 5]
         );
-        $mform->setType('completionpercent', PARAM_INT);
-        $mform->setDefault('completionpercent', 80);
-        $mform->addRule('completionpercent', null, 'numeric', null, 'client');
+        $mform->setType($completionpercent, PARAM_INT);
+        $mform->setDefault($completionpercent, 80);
+        $mform->addRule($completionpercent, null, 'numeric', null, 'client');
 
+        $completionquestions = 'completionquestions' . $suffix;
         $mform->addElement(
             'advcheckbox',
-            'completionquestions',
+            $completionquestions,
             get_string('completionquestions', 'videocompare'),
             get_string('completionquestions_help', 'videocompare')
         );
-        $mform->setDefault('completionquestions', 1);
+        $mform->setDefault($completionquestions, 1);
 
-        return ['completionpercent', 'completionquestions'];
+        return [$completionpercent, $completionquestions];
     }
 
     /**
@@ -93,7 +96,26 @@ class mod_videocompare_mod_form extends moodleform_mod {
      * @return bool
      */
     public function completion_rule_enabled($data): bool {
-        return !empty($data['completionpercent']) || !empty($data['completionquestions']);
+        $suffix = $this->get_suffix();
+        return !empty($data['completionpercent' . $suffix])
+            || !empty($data['completionquestions' . $suffix]);
+    }
+
+    /**
+     * Normalizes custom completion values returned by the form.
+     *
+     * @param stdClass $data Form data.
+     * @return void
+     */
+    public function data_postprocessing($data): void {
+        parent::data_postprocessing($data);
+
+        if (!empty($data->completionunlocked)) {
+            $completionquestions = 'completionquestions' . $this->get_suffix();
+            if (empty($data->{$completionquestions})) {
+                $data->{$completionquestions} = 0;
+            }
+        }
     }
 
     /**
@@ -105,9 +127,10 @@ class mod_videocompare_mod_form extends moodleform_mod {
      */
     public function validation($data, $files): array {
         $errors = parent::validation($data, $files);
-        if (isset($data['completionpercent'])
-            && ((int)$data['completionpercent'] < 1 || (int)$data['completionpercent'] > 100)) {
-            $errors['completionpercent'] = get_string('errorcompletionpercent', 'videocompare');
+        $completionpercent = 'completionpercent' . $this->get_suffix();
+        if (isset($data[$completionpercent])
+            && ((int)$data[$completionpercent] < 1 || (int)$data[$completionpercent] > 100)) {
+            $errors[$completionpercent] = get_string('errorcompletionpercent', 'videocompare');
         }
         return $errors;
     }

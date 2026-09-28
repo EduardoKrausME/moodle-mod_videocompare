@@ -28,8 +28,10 @@ use context;
 use context_module;
 use core_privacy\local\metadata\collection;
 use core_privacy\local\request\approved_contextlist;
+use core_privacy\local\request\approved_userlist;
 use core_privacy\local\request\contextlist;
 use core_privacy\local\request\transform;
+use core_privacy\local\request\userlist;
 use core_privacy\local\request\writer;
 
 /**
@@ -37,7 +39,8 @@ use core_privacy\local\request\writer;
  */
 class provider implements
     \core_privacy\local\metadata\provider,
-    \core_privacy\local\request\plugin\provider {
+    \core_privacy\local\request\plugin\provider,
+    \core_privacy\local\request\core_userlist_provider {
 
     /**
      * Describes stored personal data.
@@ -108,6 +111,32 @@ class provider implements
             ]);
         }
         return $contextlist;
+    }
+
+    /**
+     * Adds users who have personal data in the supplied module context.
+     *
+     * @param userlist $userlist User list for the context.
+     * @return void
+     */
+    public static function get_users_in_context(userlist $userlist): void {
+        $context = $userlist->get_context();
+        if (!$context instanceof context_module) {
+            return;
+        }
+
+        $cm = get_coursemodule_from_id('videocompare', $context->instanceid, 0, false, IGNORE_MISSING);
+        if (!$cm) {
+            return;
+        }
+
+        $params = ['videocompareid' => $cm->instance];
+        foreach (['videocompare_progress', 'videocompare_answers', 'videocompare_notes'] as $table) {
+            $sql = "SELECT userid
+                      FROM {{$table}}
+                     WHERE videocompareid = :videocompareid";
+            $userlist->add_from_sql('userid', $sql, $params);
+        }
     }
 
     /**
@@ -210,5 +239,39 @@ class provider implements
                 $DB->delete_records($table, ['videocompareid' => $cm->instance, 'userid' => $userid]);
             }
         }
+
     }
+
+    /**
+     * Deletes data for an approved list of users in one module context.
+     *
+     * @param approved_userlist $userlist Approved users and context.
+     * @return void
+     */
+    public static function delete_data_for_users(approved_userlist $userlist): void {
+        global $DB;
+
+        $context = $userlist->get_context();
+        if (!$context instanceof context_module) {
+            return;
+        }
+
+        $cm = get_coursemodule_from_id('videocompare', $context->instanceid, 0, false, IGNORE_MISSING);
+        if (!$cm) {
+            return;
+        }
+
+        $userids = $userlist->get_userids();
+        if (empty($userids)) {
+            return;
+        }
+
+        [$usersql, $userparams] = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED);
+        $select = "videocompareid = :videocompareid AND userid {$usersql}";
+        $params = ['videocompareid' => $cm->instance] + $userparams;
+
+        foreach (['videocompare_progress', 'videocompare_answers', 'videocompare_notes'] as $table) {
+            $DB->delete_records_select($table, $select, $params);
+        }
+
 }
