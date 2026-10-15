@@ -24,8 +24,8 @@
 
 defined('MOODLE_INTERNAL') || die;
 
-$plugin->version = 2026101500;
-$plugin->release = '1.0.7';
+$plugin->version = 2026101501;
+$plugin->release = '1.0.8';
 $plugin->component = 'mod_videocompare';
 $plugin->requires = 2024100700;
 $plugin->maturity = MATURITY_STABLE;
